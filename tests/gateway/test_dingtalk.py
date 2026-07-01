@@ -1193,7 +1193,7 @@ class TestAudioMessageRecognition:
 
     def test_extracts_recognition_from_extensions_content(self):
         """Primary path: extensions.content.recognition has the ASR text."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = self._audio_msg(extensions={
             "content": {"recognition": "你好世界", "downloadCode": "dl_abc"},
@@ -1203,7 +1203,7 @@ class TestAudioMessageRecognition:
 
     def test_fallback_to_top_level_recognition(self):
         """Some SDK versions put recognition directly in extensions."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = self._audio_msg(extensions={"recognition": "fallback text"})
         result = DingTalkAdapter._extract_text(msg)
@@ -1211,7 +1211,7 @@ class TestAudioMessageRecognition:
 
     def test_fallback_when_no_recognition(self):
         """ASR unavailable → placeholder text so message isn't dropped."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = self._audio_msg(extensions={"content": {"downloadCode": "dl_abc"}})
         result = DingTalkAdapter._extract_text(msg)
@@ -1219,7 +1219,7 @@ class TestAudioMessageRecognition:
 
     def test_empty_extensions(self):
         """No extensions at all → placeholder text."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = self._audio_msg(extensions=None)
         result = DingTalkAdapter._extract_text(msg)
@@ -1227,7 +1227,7 @@ class TestAudioMessageRecognition:
 
     def test_non_dict_extensions_handled(self):
         """SDK may set extensions to a non-dict value; must not crash."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = self._audio_msg(extensions="unexpected-string")
         result = DingTalkAdapter._extract_text(msg)
@@ -1235,11 +1235,23 @@ class TestAudioMessageRecognition:
 
     def test_recognition_with_whitespace_only(self):
         """Whitespace-only recognition should fall through to placeholder."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = self._audio_msg(extensions={"content": {"recognition": "   "}})
         result = DingTalkAdapter._extract_text(msg)
         assert "transcription unavailable" in result
+
+    def test_never_returns_empty_string(self):
+        """_extract_text must never return empty for audio messages,
+        even with completely missing extensions — the empty-text gate
+        in _on_message would drop the message otherwise."""
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
+
+        # All edge cases: None, empty dict, missing keys, whitespace
+        for extensions in [None, {}, {"content": {}}, {"content": {"recognition": ""}}]:
+            msg = self._audio_msg(extensions=extensions)
+            result = DingTalkAdapter._extract_text(msg)
+            assert result.strip(), f"Empty result for extensions={extensions}"
 
 
 class TestAudioMessageTypeClassification:
@@ -1247,7 +1259,7 @@ class TestAudioMessageTypeClassification:
     so the gateway can route them through STT when recognition is empty."""
 
     def test_audio_msgtype_classified_as_audio(self):
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
         from gateway.platforms.base import MessageType
 
         msg = MagicMock()
@@ -1264,7 +1276,7 @@ class TestAudioMessageTypeClassification:
 
     def test_audio_does_not_add_download_code_to_urls(self):
         """downloadCode is an OSS code, not a local path — must not be in media_urls."""
-        from gateway.platforms.dingtalk import DingTalkAdapter
+        from plugins.platforms.dingtalk.adapter import DingTalkAdapter
 
         msg = MagicMock()
         msg.image_content = None

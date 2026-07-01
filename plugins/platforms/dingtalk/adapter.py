@@ -841,9 +841,11 @@ class DingTalkAdapter(BasePlatformAdapter):
             )
         elif msg_type_str == "audio":
             # DingTalk voice messages carry ASR in extensions (extracted by
-            # _extract_text).  Classify as AUDIO so the gateway routes through
-            # STT if the recognition text is empty/missing.  Do NOT add the
-            # downloadCode to media_urls — it's an OSS code, not a local path.
+            # _extract_text above).  Classify as AUDIO for downstream routing
+            # signals.  Do NOT add downloadCode to media_urls — it's an OSS
+            # temporary code, not a local file path.  When the ASR result is
+            # empty, the placeholder text "[Voice message — transcription
+            # unavailable]" is used; no secondary STT is attempted.
             msg_type = MessageType.AUDIO
 
         return msg_type, media_urls, media_types
